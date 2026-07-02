@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -59,12 +60,12 @@ fun AcceptConditionsPreview() {
 fun AcceptConditionsScreen(
     onTapAccept: () -> Unit
 ) {
-    Scaffold { padding ->
+    Scaffold(containerColor = Color.Transparent) { padding ->
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceAround,
             modifier = Modifier
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
                 .padding(10.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())

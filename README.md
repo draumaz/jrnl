@@ -1,4 +1,20 @@
-# ⚠️ Project Archived
+# ⚠️ Project Fork: Vibe-Coded Edition
+
+This repository is a personalized, **vibe-coded fork** of the original PsychonautWiki Journal. 
+
+### What is a "Vibe-Coded" fork?
+Unlike traditional development, this version is built and maintained through high-level intent and AI-assisted "vibes." It focuses on rapid UI modernization, expressive animations, and implementing features by articulating the desired feel rather than just the code.
+
+Key changes in this fork include:
+- **Material 3 Expressive makeover**: Bouncy animations, pill-shaped navigation, and immersive edge-to-edge layouts. 
+- **Morphing Bottom UI**: The navigation pill expressively transforms into a bottom-centered search bar when entering flows, ensuring ergonomic one-handed use and smooth visual continuity.
+- **Expressive Live Updates**: Immersive, system-wide notifications for ongoing ingestions featuring a visual timeline graph. It tracks your phase (Onset, Peak, etc.) in real-time with a "NOW" indicator, similar to a transit or delivery live activity.
+- **Visual Refinements**: Enhanced legibility with increased color tinting (0.35 alpha) on category badges and a decluttered ingestion flow.
+- **AI-Driven Iteration**: Every feature and refactor is guided by natural language conversations with AI, prioritizing the user experience "vibe."
+
+---
+
+# ⚠️ Original Project Archived
 
 This repository has been archived.
 Active development continues in a private repository.

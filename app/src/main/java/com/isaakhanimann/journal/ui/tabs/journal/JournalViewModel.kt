@@ -42,11 +42,22 @@ val IS_MIGRATED_1 = booleanPreferencesKey("is_migrated_1")
 @HiltViewModel
 class JournalViewModel @Inject constructor(
     private val experienceRepo: ExperienceRepository,
-    searchRepository: SearchRepository,
+    private val searchRepository: SearchRepository,
     private val dataStore: DataStore<Preferences>,
     private val userPreferences: UserPreferences,
+    private val liveUpdateManager: LiveUpdateManager,
 ) : ViewModel() {
 
+    val liveUpdateFlow = liveUpdateManager.liveUpdateFlow
+
+    init {
+        viewModelScope.launch {
+            experienceRepo.getSortedIngestionsWithSubstanceCompanionsFlow(limit = 1).collect {
+                // We just observe ingestions to potentially trigger something if needed,
+                // but LiveUpdateManager handles the notification.
+            }
+        }
+    }
 
     val isTimeRelativeToNow = mutableStateOf(false)
 

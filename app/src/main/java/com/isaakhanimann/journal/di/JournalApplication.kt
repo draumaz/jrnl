@@ -19,7 +19,18 @@
 package com.isaakhanimann.journal.di
 
 import android.app.Application
+import com.isaakhanimann.journal.ui.tabs.journal.LiveUpdateManager
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
-class JournalApplication : Application()
+class JournalApplication : Application() {
+
+    @Inject
+    lateinit var liveUpdateManager: LiveUpdateManager
+
+    override fun onCreate() {
+        super.onCreate()
+        liveUpdateManager.setup()
+    }
+}

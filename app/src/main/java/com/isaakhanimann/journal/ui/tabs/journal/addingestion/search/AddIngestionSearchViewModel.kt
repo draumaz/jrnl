@@ -58,19 +58,58 @@ class AddIngestionSearchViewModel @Inject constructor(
         }
     }
 
+    private val _selectedCategoriesFlow = MutableStateFlow<List<String>>(emptyList())
+    val selectedCategoriesFlow = _selectedCategoriesFlow.asStateFlow()
+
+    fun toggleCategory(categoryName: String) {
+        viewModelScope.launch {
+            val current = _selectedCategoriesFlow.value
+            if (current.contains(categoryName)) {
+                _selectedCategoriesFlow.emit(current - categoryName)
+            } else {
+                _selectedCategoriesFlow.emit(current + categoryName)
+            }
+        }
+    }
+
+    val chipCategoriesFlow = combine(
+        selectedCategoriesFlow,
+        searchTextFlow
+    ) { selected, _ ->
+        substanceRepo.getAllCategories().map { category ->
+            val isActive = selected.contains(category.name)
+            CategoryChipModel(
+                chipName = category.name,
+                color = category.color,
+                isActive = isActive
+            )
+        }
+    }.stateIn(
+        initialValue = emptyList(),
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000)
+    )
+
     val filteredSubstancesFlow = combine(
         searchTextFlow,
+        selectedCategoriesFlow,
         experienceRepo.getSortedLastUsedSubstanceNamesFlow(limit = 200)
-    ) { searchText, recents ->
+    ) { searchText, categories, recents ->
         return@combine searchRepo.getMatchingSubstances(
             searchText = searchText,
-            filterCategories = emptyList(),
+            filterCategories = categories,
             recentlyUsedSubstanceNamesSorted = recents
         ).map { it.toSubstanceModel() }
     }.stateIn(
         initialValue = emptyList(),
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000)
+    )
+
+    data class CategoryChipModel(
+        val chipName: String,
+        val color: androidx.compose.ui.graphics.Color,
+        val isActive: Boolean
     )
 
     private val customUnitsFlow = experienceRepo.getCustomUnitsFlow(false)

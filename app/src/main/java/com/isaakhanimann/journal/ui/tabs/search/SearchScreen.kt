@@ -20,6 +20,7 @@ package com.isaakhanimann.journal.ui.tabs.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -66,16 +68,22 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
             if (!isFocused) {
                 FloatingActionButton(
-                    onClick = { focusRequester.requestFocus() }) {
+                    onClick = { focusRequester.requestFocus() },
+                    modifier = Modifier.padding(bottom = 90.dp)
+                ) {
                     Icon(Icons.Default.Keyboard, contentDescription = "Keyboard")
                 }
             }
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        Column(
+            modifier = Modifier
+                .padding(top = padding.calculateTopPadding())
+        ) {
             SearchField(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,7 +155,9 @@ fun SearchScreen(
                     }
                 }
             } else {
-                LazyColumn {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 120.dp)
+                ) {
                     items(filteredCustomSubstances) { customSubstance ->
                         SubstanceRow(substanceModel = SubstanceModel(
                             name = customSubstance.name,

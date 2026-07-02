@@ -51,7 +51,7 @@ fun CategoryChipDelete(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(shape = CircleShape)
-            .background(color = categoryChipModel.color.copy(alpha = 0.2f))
+            .background(color = categoryChipModel.color.copy(alpha = 0.35f))
             .clickable(onClick = onClick)
             .padding(vertical = 3.dp, horizontal = 8.dp)
 

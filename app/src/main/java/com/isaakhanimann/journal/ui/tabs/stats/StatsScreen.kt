@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -40,6 +41,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -114,9 +117,14 @@ fun StatsScreen(
     consumerNamesSorted: List<String>,
 ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(if (statsModel.consumerName == null) "Statistics" else "Statistics for ${statsModel.consumerName}") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
                 actions = {
                     if (consumerNamesSorted.isNotEmpty()) {
                         var isConsumerSelectionExpanded by remember { mutableStateOf(false) }
@@ -173,7 +181,7 @@ fun StatsScreen(
                 description = "Start logging your ingestions to see an overview of your consumption pattern."
             )
         } else {
-            Column(modifier = Modifier.padding(padding)) {
+            Column(modifier = Modifier.padding(top = padding.calculateTopPadding())) {
                 TabRow(
                     selectedTabIndex = statsModel.selectedOption.tabIndex,
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -207,7 +215,9 @@ fun StatsScreen(
                             startDateText = statsModel.startDateText
                         )
                         HorizontalDivider()
-                        LazyColumn {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 120.dp)
+                        ) {
                             items(statsModel.statItems) { subStat ->
                                 Column {
                                     Row(

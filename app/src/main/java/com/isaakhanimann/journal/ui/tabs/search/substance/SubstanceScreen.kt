@@ -586,7 +586,7 @@ fun CategoryChipFromSubstanceScreen(
             .clickable {
                 navigateToCategoryScreen(category.name)
             }
-            .background(color = category.color.copy(alpha = 0.2f))
+            .background(color = category.color.copy(alpha = 0.35f))
             .height(48.dp)
             .padding(horizontal = 12.dp)
 

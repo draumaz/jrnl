@@ -22,6 +22,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -53,6 +54,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,9 +64,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -147,9 +151,14 @@ fun JournalScreen(
     experiences: List<ExperienceWithIngestionsCompanionsAndRatings>,
 ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Journal") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
                 actions = {
                     IconToggleButton(
                         checked = isTimeRelativeToNow,
@@ -194,6 +203,7 @@ fun JournalScreen(
             if (!isSearchEnabled) {
                 ExtendedFloatingActionButton(
                     onClick = navigateToAddIngestion,
+                    modifier = Modifier.padding(bottom = 90.dp),
                     icon = {
                         Icon(
                             Icons.Filled.Add,
@@ -209,7 +219,7 @@ fun JournalScreen(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             Column(
                 modifier = Modifier
@@ -287,7 +297,8 @@ fun JournalScreen(
                 Box(contentAlignment = Alignment.TopEnd) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        state = listState
+                        state = listState,
+                        contentPadding = PaddingValues(bottom = 120.dp)
                     ) {
                         if (experiences.isNotEmpty()) {
                             item {

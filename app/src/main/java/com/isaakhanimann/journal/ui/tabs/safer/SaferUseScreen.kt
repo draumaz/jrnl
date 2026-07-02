@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Biotech
 import androidx.compose.material.icons.outlined.HealthAndSafety
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedCard
@@ -78,16 +80,21 @@ fun SaferUseScreen(
     navigateToReagentTestingScreen: () -> Unit,
 ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Safer use") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                ),
             )
         },
     ) { padding ->
         Column(
             Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             SectionWithTitle(title = "1. Research") {
                 SaferText(text = "In advance research the duration, subjective effects and potential adverse effects which the substance or combination of substances are likely to produce.\nRead the info in here and also the PsychonautWiki article. Its best to cross-reference with other sources (Tripsit, Erowid, Wikipedia, Bluelight, Reddit, etc). There is no rush.")

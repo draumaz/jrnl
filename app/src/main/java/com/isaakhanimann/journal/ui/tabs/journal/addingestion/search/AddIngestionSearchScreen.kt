@@ -23,8 +23,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,39 +33,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.isaakhanimann.journal.data.room.experiences.entities.AdaptiveColor
@@ -87,7 +74,7 @@ fun AddIngestionSearchScreen(
     navigateToCustomSubstanceChooseRoute: (customSubstanceName: String) -> Unit,
     navigateToCustomUnitChooseDose: (customUnitId: Int) -> Unit,
     navigateToAddCustomSubstanceScreen: (searchText: String) -> Unit,
-    viewModel: AddIngestionSearchViewModel = hiltViewModel()
+    viewModel: AddIngestionSearchViewModel = hiltViewModel(),
 ) {
     val searchText = viewModel.searchTextFlow.collectAsState().value
     AddIngestionSearchScreen(
@@ -103,10 +90,6 @@ fun AddIngestionSearchScreen(
         },
         navigateToCustomUnitChooseDose = navigateToCustomUnitChooseDose,
         suggestions = viewModel.filteredSuggestions.collectAsState().value,
-        searchText = searchText,
-        onChangeSearchText = {
-            viewModel.updateSearchText(it)
-        },
         filteredSubstances = viewModel.filteredSubstancesFlow.collectAsState().value,
         filteredCustomUnits = viewModel.filteredCustomUnitsFlow.collectAsState().value,
         filteredCustomSubstances = viewModel.filteredCustomSubstancesFlow.collectAsState().value
@@ -126,70 +109,29 @@ fun AddIngestionSearchScreen(
     navigateToAddCustomSubstanceScreen: () -> Unit,
     navigateToCustomUnitChooseDose: (customUnitId: Int) -> Unit,
     suggestions: List<Suggestion>,
-    searchText: String,
-    onChangeSearchText: (searchText: String) -> Unit,
     filteredSubstances: List<SubstanceModel>,
     filteredCustomUnits: List<CustomUnit>,
     filteredCustomSubstances: List<CustomSubstance>
 ) {
-    val focusRequester = remember { FocusRequester() }
-    var isFocused by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
     Scaffold(
-        floatingActionButton = {
-            if (!isFocused) {
-                FloatingActionButton(onClick = { focusRequester.requestFocus() }) {
-                    Icon(Icons.Default.Keyboard, contentDescription = "Keyboard")
-                }
-            }
-        }
+        containerColor = Color.Transparent,
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = padding.calculateTopPadding())
+        ) {
             LinearProgressIndicator(
                 progress = { 0.17f },
-                modifier = Modifier.fillMaxWidth().clearAndSetSemantics {  },
-            )
-            TextField(
-                value = searchText,
-                onValueChange = { value ->
-                    onChangeSearchText(value)
-                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        isFocused = focusState.isFocused
-                    }.clearAndSetSemantics {  },
-                placeholder = { Text(text = "Search substances") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                    )
-                },
-                trailingIcon = {
-                    Row {
-                        if (searchText.isNotEmpty()) {
-                            IconButton(onClick = {
-                                onChangeSearchText("")
-                            }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Close",
-                                )
-                            }
-                        }
-                    }
-                },
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    autoCorrectEnabled = false,
-                    imeAction = ImeAction.Done,
-                    capitalization = KeyboardCapitalization.Words,
-                ),
-                singleLine = true
+                    .clearAndSetSemantics { },
             )
-            LazyColumn {
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 120.dp)
+            ) {
                 if (suggestions.isNotEmpty()) {
                     stickyHeader {
                         SectionHeader(title = "Quick logging")
@@ -203,7 +145,7 @@ fun AddIngestionSearchScreen(
                         navigateToCustomDose = navigateToCustomDose,
                         navigateToChooseTime = navigateToChooseTime
                     )
-                    if (index < suggestions.size - 1) {
+                    if (index < (suggestions.size - 1)) {
                         HorizontalDivider()
                     }
                 }
@@ -213,16 +155,19 @@ fun AddIngestionSearchScreen(
                     }
                 }
                 itemsIndexed(filteredCustomSubstances) { index, customSubstance ->
-                    SubstanceRowAddIngestion(substanceModel = SubstanceModel(
-                        name = customSubstance.name,
-                        commonNames = emptyList(),
-                        categories = emptyList(),
-                        hasSaferUse = false,
-                        hasInteractions = false
-                    ), onTap = {
-                        navigateToCustomSubstanceChooseRoute(customSubstance.name)
-                    })
-                    if (index < filteredCustomSubstances.size - 1) {
+                    SubstanceRowAddIngestion(
+                        substanceModel = SubstanceModel(
+                            name = customSubstance.name,
+                            commonNames = emptyList(),
+                            categories = emptyList(),
+                            hasSaferUse = false,
+                            hasInteractions = false
+                        ), 
+                        onTap = {
+                            navigateToCustomSubstanceChooseRoute(customSubstance.name)
+                        }
+                    )
+                    if (index < (filteredCustomSubstances.size - 1)) {
                         HorizontalDivider()
                     }
                 }
@@ -235,13 +180,8 @@ fun AddIngestionSearchScreen(
                     CustomUnitRowAddIngestion(
                         customUnit = customUnit,
                         navigateToCustomUnitChooseDose = navigateToCustomUnitChooseDose)
-                    if (index < filteredCustomUnits.size - 1) {
+                    if (index < (filteredCustomUnits.size - 1)) {
                         HorizontalDivider()
-                    }
-                }
-                if (filteredSubstances.isNotEmpty()) {
-                    stickyHeader {
-                        SectionHeader(title = "Substances")
                     }
                 }
                 items(filteredSubstances) { substance ->
