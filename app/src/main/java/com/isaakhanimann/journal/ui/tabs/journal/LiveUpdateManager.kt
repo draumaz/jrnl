@@ -83,48 +83,57 @@ class LiveUpdateManager @Inject constructor(
         }
     }
 
-    val liveUpdateFlow = experienceRepo.getSortedIngestionsWithSubstanceCompanionsFlow(limit = 1)
+    val liveUpdateFlow = experienceRepo.getSortedIngestionsWithSubstanceCompanionsFlow(limit = 20)
         .combine(tickerFlow) { ingestions, now ->
-            val latest = ingestions.firstOrNull() ?: return@combine null
-            val substance =
-                searchRepository.substanceRepo.getSubstance(latest.ingestion.substanceName)
-            val roa = substance?.getRoa(latest.ingestion.administrationRoute)
-            val duration = roa?.roaDuration ?: return@combine null
+            val activeIngestions = ingestions.mapNotNull { ingestionWithCompanion ->
+                val substance =
+                    searchRepository.substanceRepo.getSubstance(ingestionWithCompanion.ingestion.substanceName)
+                val roa = substance?.getRoa(ingestionWithCompanion.ingestion.administrationRoute)
+                val duration = roa?.roaDuration ?: return@mapNotNull null
 
-            // Check if active: within total duration + some buffer (e.g. 2 hours afterglow)
-            val totalMaxSeconds = duration.total?.maxInSec ?: (duration.peak?.maxInSec ?: 3600f * 4)
-            val afterglowMaxSeconds = duration.afterglow?.maxInSec ?: 3600f * 4
+                val totalMaxSeconds = duration.total?.maxInSec ?: (
+                        (duration.onset?.maxInSec ?: 0f) +
+                                (duration.comeup?.maxInSec ?: 0f) +
+                                (duration.peak?.maxInSec ?: 0f) +
+                                (duration.offset?.maxInSec ?: 0f)
+                        )
+                val afterglowMaxSeconds = duration.afterglow?.maxInSec ?: 0f
 
-            val totalActiveSeconds = totalMaxSeconds + afterglowMaxSeconds
-            val elapsedSeconds = Duration.between(latest.ingestion.time, now).seconds
+                val totalActiveSeconds = totalMaxSeconds + afterglowMaxSeconds
+                val elapsedSeconds = Duration.between(ingestionWithCompanion.ingestion.time, now).seconds
 
-            if (elapsedSeconds < 0 || elapsedSeconds > totalActiveSeconds) {
-                return@combine null
+                if (elapsedSeconds in 0..totalActiveSeconds.toLong()) {
+                    val timelineModel = AllTimelinesModel(
+                        dataForLines = listOf(
+                            DataForOneEffectLine(
+                                substanceName = ingestionWithCompanion.ingestion.substanceName,
+                                route = ingestionWithCompanion.ingestion.administrationRoute,
+                                roaDuration = duration,
+                                height = 1f,
+                                horizontalWeight = 1f,
+                                color = ingestionWithCompanion.substanceCompanion?.color
+                                    ?: AdaptiveColor.TEAL,
+                                startTime = ingestionWithCompanion.ingestion.time,
+                                endTime = ingestionWithCompanion.ingestion.endTime
+                            )
+                        ),
+                        dataForRatings = emptyList(),
+                        timedNotes = emptyList(),
+                        areSubstanceHeightsIndependent = true
+                    )
+
+                    LiveUpdateModel(
+                        ingestionWithCompanion = ingestionWithCompanion,
+                        timelineModel = timelineModel,
+                        duration = duration
+                    )
+                } else {
+                    null
+                }
             }
 
-            val timelineModel = AllTimelinesModel(
-                dataForLines = listOf(
-                    DataForOneEffectLine(
-                        substanceName = latest.ingestion.substanceName,
-                        route = latest.ingestion.administrationRoute,
-                        roaDuration = duration,
-                        height = 1f,
-                        horizontalWeight = 1f,
-                        color = latest.substanceCompanion?.color ?: AdaptiveColor.TEAL,
-                        startTime = latest.ingestion.time,
-                        endTime = latest.ingestion.endTime
-                    )
-                ),
-                dataForRatings = emptyList(),
-                timedNotes = emptyList(),
-                areSubstanceHeightsIndependent = true
-            )
-
-            return@combine LiveUpdateModel(
-                ingestionWithCompanion = latest,
-                timelineModel = timelineModel,
-                duration = duration
-            )
+            // Return the most recently taken active ingestion
+            return@combine activeIngestions.maxByOrNull { it.ingestionWithCompanion.ingestion.time }
         }.stateIn(
             initialValue = null,
             scope = scope,
@@ -202,6 +211,8 @@ class LiveUpdateManager @Inject constructor(
 
         val notification = NotificationCompat.Builder(context, LIVE_UPDATE_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(substanceName)
+            .setContentText("Phase: $phaseName")
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
@@ -209,15 +220,17 @@ class LiveUpdateManager @Inject constructor(
             .setOnlyAlertOnce(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
         notificationManager.notify(LIVE_UPDATE_NOTIFICATION_ID, notification)
     }
 
     private fun drawTimelineGraph(liveUpdate: LiveUpdateModel): Bitmap {
-        val width = 1000
-        val height = 300
-        val paddingHorizontal = 80f
-        val paddingVertical = 60f
+        val width = 600 // Reduced from 1000
+        val height = 200 // Reduced from 300
+        val paddingHorizontal = 50f
+        val paddingVertical = 40f
         
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -244,10 +257,10 @@ class LiveUpdateManager @Inject constructor(
         val strokePaint = Paint().apply {
             this.color = paintColor
             style = Paint.Style.STROKE
-            strokeWidth = 10f
+            strokeWidth = 6f
             isAntiAlias = true
             strokeCap = Paint.Cap.ROUND
-            pathEffect = CornerPathEffect(30f)
+            pathEffect = CornerPathEffect(20f)
         }
         
         val fillPaint = Paint().apply {
@@ -255,7 +268,7 @@ class LiveUpdateManager @Inject constructor(
             alpha = 40
             style = Paint.Style.FILL
             isAntiAlias = true
-            pathEffect = CornerPathEffect(30f)
+            pathEffect = CornerPathEffect(20f)
         }
 
         // Points
@@ -284,7 +297,7 @@ class LiveUpdateManager @Inject constructor(
         
         // Afterglow (dotted)
         val afterglowPaint = Paint(strokePaint).apply {
-            pathEffect = DashPathEffect(floatArrayOf(15f, 15f), 0f)
+            pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
         }
         canvas.drawLine(x4, baseLineY, x5, baseLineY, afterglowPaint)
         
@@ -294,7 +307,7 @@ class LiveUpdateManager @Inject constructor(
             style = Paint.Style.FILL
             isAntiAlias = true
         }
-        canvas.drawCircle(x0, baseLineY, 12f, markerPaint) // Ingestion
+        canvas.drawCircle(x0, baseLineY, 8f, markerPaint) // Ingestion
         
         // Current time marker
         val now = Instant.now()
@@ -303,25 +316,25 @@ class LiveUpdateManager @Inject constructor(
             val nowX = x0 + elapsed * pixelsPerSec
             val nowMarkerPaint = Paint().apply {
                 this.color = android.graphics.Color.parseColor("#FF5252") // M3 Error/Attention Red
-                strokeWidth = 5f
+                strokeWidth = 3f
                 isAntiAlias = true
             }
             canvas.drawLine(nowX, 0f, nowX, height.toFloat(), nowMarkerPaint)
             
             val nowLabelPaint = Paint().apply {
                 this.color = nowMarkerPaint.color
-                textSize = 28f
+                textSize = 20f
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
-            canvas.drawText("NOW", nowX, 30f, nowLabelPaint)
+            canvas.drawText("NOW", nowX, 22f, nowLabelPaint)
         }
         
         // Time Labels
         val textPaint = Paint().apply {
             this.color = android.graphics.Color.DKGRAY
-            textSize = 26f
+            textSize = 18f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
