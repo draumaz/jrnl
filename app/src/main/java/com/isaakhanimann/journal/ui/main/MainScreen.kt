@@ -18,6 +18,7 @@
 
 package com.isaakhanimann.journal.ui.main
 
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -25,7 +26,9 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -42,11 +45,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,6 +79,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -79,12 +89,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -110,7 +123,9 @@ import com.isaakhanimann.journal.ui.main.navigation.graphs.statsGraph
 import com.isaakhanimann.journal.ui.main.navigation.topLevelRoutes
 import com.isaakhanimann.journal.ui.tabs.journal.addingestion.search.AddIngestionSearchViewModel
 import com.isaakhanimann.journal.ui.theme.horizontalPadding
+import kotlinx.coroutines.CancellationException
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     viewModel: MainScreenViewModel = hiltViewModel()
@@ -121,13 +136,54 @@ fun MainScreen(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
+        var predictiveBackProgress by remember { mutableFloatStateOf(0f) }
+        val visualBackProgress by animateFloatAsState(
+            targetValue = predictiveBackProgress,
+            animationSpec = if (predictiveBackProgress > 0f) snap() else spring(stiffness = Spring.StiffnessLow),
+            label = "visualBackProgress"
+        )
+
+        PredictiveBackHandler(enabled = navController.previousBackStackEntry != null) { progressFlow ->
+            try {
+                progressFlow.collect { backEvent ->
+                    predictiveBackProgress = backEvent.progress
+                }
+                navController.popBackStack()
+            } catch (e: CancellationException) {
+                // handle cancellation
+            } finally {
+                predictiveBackProgress = 0f
+            }
+        }
+
         val isSearchScreenActive = currentDestination?.hasRoute(AddIngestionSearchRoute::class) == true
         val isInAddIngestionFlow = currentDestination?.hierarchy?.any {
             it.hasRoute(AddIngestionRoute::class)
         } == true
 
+        val isTargetingSearch = visualBackProgress > 0f && navController.previousBackStackEntry?.destination?.hasRoute(AddIngestionSearchRoute::class) == true
+        val isTargetingTopLevel = visualBackProgress > 0f && navController.previousBackStackEntry?.destination?.hierarchy?.any { dest ->
+            topLevelRoutes.any { route -> dest.hasRoute(route.route::class) }
+        } == true
+
         var isBottomBarVisibleByScroll by remember { mutableStateOf(true) }
-        val isBottomBarVisible = isBottomBarVisibleByScroll && (!isInAddIngestionFlow || isSearchScreenActive)
+        val isBottomBarVisibleByState = !isInAddIngestionFlow || isSearchScreenActive
+        
+        val barEntryProgress by animateFloatAsState(
+            targetValue = when {
+                isBottomBarVisibleByScroll && isBottomBarVisibleByState -> 1f
+                isTargetingTopLevel || isTargetingSearch -> visualBackProgress
+                else -> 0f
+            },
+            animationSpec = if (visualBackProgress > 0f) snap() else spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
+            label = "barEntryProgress"
+        )
+
+        // Navigation bar entry logic
+        val isBottomBarInLayout = barEntryProgress > 0.01f
 
         val nestedScrollConnection = remember {
             object : NestedScrollConnection {
@@ -144,24 +200,34 @@ fun MainScreen(
         }
 
         val expressiveSpring = spring<Float>(
-            dampingRatio = Spring.DampingRatioLowBouncy,
+            dampingRatio = 0.65f,
             stiffness = Spring.StiffnessLow
         )
         val expressiveSpringIntOffset = spring<IntOffset>(
-            dampingRatio = Spring.DampingRatioLowBouncy,
+            dampingRatio = 0.65f,
             stiffness = Spring.StiffnessLow
         )
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(Color(0xFF0F0808))
                 .nestedScroll(nestedScrollConnection)
         ) {
             NavHost(
                 navController,
                 startDestination = JournalTopLevelRoute,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        if (visualBackProgress > 0f) {
+                            val scale = 1f - (visualBackProgress * 0.08f)
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = visualBackProgress * size.width * 0.2f
+                            alpha = 1f - (visualBackProgress * 0.3f)
+                        }
+                    },
                 enterTransition = {
                     slideIntoContainer(
                         towards = AnimatedContentTransitionScope.SlideDirection.Start,
@@ -194,30 +260,34 @@ fun MainScreen(
                 settingsGraph(navController)
             }
 
-            AnimatedVisibility(
-                visible = isBottomBarVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
-                ) + fadeIn(),
-                exit = slideOutVertically(
-                    targetOffsetY = { it / 2 },
-                    animationSpec = tween(600)
-                ) + scaleOut(
-                    targetScale = 0.5f,
-                    transformOrigin = TransformOrigin(0.5f, 1f),
-                    animationSpec = tween(600)
-                ) + fadeOut(animationSpec = tween(600)) + shrinkVertically(
-                    shrinkTowards = Alignment.Bottom,
-                    animationSpec = tween(600)
-                ),
-                modifier = Modifier.align(Alignment.BottomCenter)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .graphicsLayer {
+                        translationY = (1f - barEntryProgress) * 100.dp.toPx()
+                        alpha = barEntryProgress
+                        
+                        if (visualBackProgress > 0f && !isTargetingTopLevel && !isTargetingSearch) {
+                            // Squeeze/recede effect if we are swiping back but bar is staying or leaving
+                            val scale = 1f - (visualBackProgress * 0.08f)
+                            scaleX = scale
+                            scaleY = scale
+                            translationY += visualBackProgress * 40f
+                        }
+                    }
             ) {
+                val isKeyboardVisible = WindowInsets.isImeVisible
+                val bottomPadding by animateDpAsState(
+                    targetValue = if (isKeyboardVisible) 8.dp else 12.dp,
+                    label = "bottomPadding"
+                )
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .imePadding()
                         .navigationBarsPadding()
-                        .padding(bottom = 24.dp),
+                        .padding(bottom = bottomPadding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -267,25 +337,37 @@ fun MainScreen(
 
                     Surface(
                         modifier = Modifier
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = 16.dp)
+                            .height(80.dp)
+                            .graphicsLayer {
+                                // Add a subtle squeeze effect during predictive back
+                                val scaleY = 1f - (visualBackProgress * 0.05f)
+                                this.scaleY = scaleY
+                                transformOrigin = TransformOrigin(0.5f, 1f)
+                            },
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-                        tonalElevation = 4.dp,
-                        shadowElevation = 12.dp
+                        color = Color(0xFF1F1212).copy(alpha = 0.85f),
+                        shadowElevation = 8.dp
                     ) {
                         AnimatedContent(
-                            targetState = isSearchScreenActive,
+                            targetState = if (visualBackProgress > 0f && isTargetingTopLevel) false else isSearchScreenActive,
                             transitionSpec = {
-                                fadeIn(animationSpec = tween(250))
-                                    .togetherWith(fadeOut(animationSpec = tween(250)))
-                                    .using(
-                                        SizeTransform { _, _ ->
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                                stiffness = Spring.StiffnessLow
-                                            )
-                                        }
-                                    )
+                                if (visualBackProgress > 0f) {
+                                    fadeIn(animationSpec = snap())
+                                        .togetherWith(fadeOut(animationSpec = snap()))
+                                        .using(SizeTransform { _, _ -> snap() })
+                                } else {
+                                    fadeIn(animationSpec = tween(250))
+                                        .togetherWith(fadeOut(animationSpec = tween(250)))
+                                        .using(
+                                            SizeTransform { _, _ ->
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessLow
+                                                )
+                                            }
+                                        )
+                                }
                             },
                             label = "pillTransformation",
                             contentAlignment = Alignment.Center
@@ -306,8 +388,8 @@ fun MainScreen(
 
                                     Row(
                                         modifier = Modifier
-                                            .padding(8.dp)
-                                            .padding(horizontal = 12.dp, vertical = 14.dp),
+                                            .fillMaxHeight()
+                                            .padding(horizontal = 20.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -367,7 +449,8 @@ fun MainScreen(
                             } else {
                                 Row(
                                     modifier = Modifier
-                                        .padding(8.dp),
+                                        .fillMaxHeight()
+                                        .padding(horizontal = 8.dp),
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -376,28 +459,34 @@ fun MainScreen(
                                             it.hasRoute(topLevelRoute.route::class)
                                         } == true
 
-                                        val scale by animateFloatAsState(
-                                            targetValue = if (selected) 1.2f else 1.0f,
-                                            animationSpec = spring(
-                                                dampingRatio = 0.35f,
-                                                stiffness = Spring.StiffnessLow
-                                            ),
-                                            label = "scale"
+                                        val isTarget = visualBackProgress > 0f && navController.previousBackStackEntry?.destination?.hierarchy?.any { dest ->
+                                            dest.hasRoute(topLevelRoute.route::class)
+                                        } == true
+
+                                        val selectionAmount by animateFloatAsState(
+                                            targetValue = if (visualBackProgress > 0f) {
+                                                when {
+                                                    selected && isTarget -> 1f
+                                                    selected -> 1f - visualBackProgress
+                                                    isTarget -> visualBackProgress
+                                                    else -> 0f
+                                                }
+                                            } else {
+                                                if (selected) 1f else 0f
+                                            },
+                                            animationSpec = if (visualBackProgress > 0f) snap() else spring(stiffness = Spring.StiffnessLow),
+                                            label = "selectionAmount"
                                         )
 
-                                        val backgroundColor by animateColorAsState(
-                                            targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                                            label = "backgroundColor"
-                                        )
-
-                                        val contentColor by animateColorAsState(
-                                            targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            label = "contentColor"
-                                        )
+                                        val backgroundColor =
+                                            lerp(Color.Transparent, Color(0xFF4A2A2A), selectionAmount)
+                                        val contentColor =
+                                            lerp(Color(0xFF9C8282), Color(0xFFF2DEDE), selectionAmount)
 
                                         Row(
                                             modifier = Modifier
+                                                .padding(vertical = 10.dp)
+                                                .fillMaxHeight()
                                                 .clip(CircleShape)
                                                 .background(backgroundColor)
                                                 .clickable {
@@ -417,22 +506,37 @@ fun MainScreen(
                                                         }
                                                     }
                                                 }
-                                                .padding(horizontal = 16.dp, vertical = 14.dp)
-                                                .scale(scale),
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                .scale(1f + (0.05f * selectionAmount)),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp * selectionAmount)
                                         ) {
                                             Icon(
-                                                imageVector = if (selected) topLevelRoute.filledIcon else topLevelRoute.outlinedIcon,
+                                                imageVector = if (selectionAmount > 0.5f) topLevelRoute.filledIcon else topLevelRoute.outlinedIcon,
                                                 contentDescription = topLevelRoute.name,
                                                 tint = contentColor
                                             )
-                                            AnimatedVisibility(visible = selected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .layout { measurable, constraints ->
+                                                        val placeable = measurable.measure(constraints)
+                                                        val width =
+                                                            (placeable.width * selectionAmount).toInt()
+                                                        layout(width, placeable.height) {
+                                                            placeable.placeRelative(0, 0)
+                                                        }
+                                                    }
+                                                    .graphicsLayer {
+                                                        alpha = selectionAmount
+                                                        clip = true
+                                                    }
+                                            ) {
                                                 Text(
                                                     text = topLevelRoute.name,
                                                     color = contentColor,
                                                     style = MaterialTheme.typography.labelLarge,
-                                                    maxLines = 1
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }

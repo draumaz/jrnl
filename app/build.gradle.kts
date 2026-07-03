@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.google.fonts)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material3.adaptive.navigation.suite.android)
     testImplementation(libs.junit)

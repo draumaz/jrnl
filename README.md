@@ -7,9 +7,11 @@ Unlike traditional development, this version is built and maintained through hig
 
 Key changes in this fork include:
 - **Material 3 Expressive makeover**: Bouncy animations, pill-shaped navigation, and immersive edge-to-edge layouts. 
-- **Morphing Bottom UI**: The navigation pill expressively transforms into a bottom-centered search bar when entering flows, ensuring ergonomic one-handed use and smooth visual continuity.
+- **Morphing Bottom UI**: A chunky, 80dp high navigation pill that expressively transforms into a bottom-centered search bar. It features gesture-driven transitions where the active highlight lerps and morphs in real-time with the predictive back gesture.
+- **Ergonomic Search**: The search bar automatically docks above the keyboard when typing, ensuring effortless one-handed use.
+- **Wine-Coded Theming**: A sophisticated deep red and wine-colored interface (`#0F0808` background) with glass-morphic translucent surfaces.
 - **Expressive Live Updates**: Immersive, system-wide notifications for ongoing ingestions featuring a visual timeline graph. It tracks your phase (Onset, Peak, etc.) in real-time with a "NOW" indicator, similar to a transit or delivery live activity.
-- **Visual Refinements**: Enhanced legibility with increased color tinting (0.35 alpha) on category badges and a decluttered ingestion flow.
+- **Visual Refinements**: Enhanced legibility with increased color tinting (0.35 alpha) on category badges, a decluttered ingestion flow, and collapsible settings sections for a cleaner interface.
 - **AI-Driven Iteration**: Every feature and refactor is guided by natural language conversations with AI, prioritizing the user experience "vibe."
 
 ---

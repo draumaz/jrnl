@@ -22,7 +22,13 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -39,6 +45,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ContactSupport
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.FileDownload
@@ -77,6 +85,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -204,12 +213,14 @@ fun SettingsScreen(
                 ExpressiveSwitchButton(
                     text = "Hide dosage dots",
                     checked = areDosageDotsHidden,
-                    onCheckedChange = saveDosageDotsAreHidden
+                    onCheckedChange = saveDosageDotsAreHidden,
+                    activeColor = MaterialTheme.colorScheme.primaryContainer
                 )
                 ExpressiveSwitchButton(
                     text = "Hide timeline",
                     checked = isTimelineHidden,
-                    onCheckedChange = saveIsTimelineHidden
+                    onCheckedChange = saveIsTimelineHidden,
+                    activeColor = MaterialTheme.colorScheme.secondaryContainer
                 )
                 
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -219,6 +230,7 @@ fun SettingsScreen(
                     text = "Independent substance heights",
                     checked = areSubstanceHeightsIndependent,
                     onCheckedChange = saveAreSubstanceHeightsIndependent,
+                    activeColor = MaterialTheme.colorScheme.tertiaryContainer,
                     onInfoClick = { showBottomSheet = true }
                 )
 
@@ -255,7 +267,7 @@ fun SettingsScreen(
                 ExpressiveSettingsItem(
                     imageVector = Icons.Outlined.FileUpload,
                     text = "Export database",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
                     onClick = { isShowingExportDialog = true }
                 )
                 
@@ -285,7 +297,7 @@ fun SettingsScreen(
                 ExpressiveSettingsItem(
                     imageVector = Icons.Outlined.FileDownload,
                     text = "Import database",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                     onClick = { isShowingImportDialog = true }
                 )
                 
@@ -348,13 +360,13 @@ fun SettingsScreen(
                 ExpressiveSettingsItem(
                     imageVector = Icons.Outlined.QuestionAnswer,
                     text = "Frequently Asked Questions",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
                     onClick = navigateToFAQ
                 )
                 ExpressiveSettingsItem(
                     imageVector = Icons.AutoMirrored.Outlined.ContactSupport,
                     text = "Question or Bug report",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
                     onClick = { uriHandler.openUri("https://t.me/+ss8uZhBF6g00MTY8") }
                 )
                 ExpressiveSettingsItem(
@@ -365,19 +377,19 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection(title = "About") {
+            SettingsSection(title = "About", initiallyExpanded = true) {
                 ExpressiveSettingsItem(
                     imageVector = Icons.Outlined.Code,
                     text = "Source code (GitHub)",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                    onClick = { uriHandler.openUri("https://github.com/isaakhanimann/psychonautwiki-journal-android") }
+                    backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    onClick = { uriHandler.openUri("https://github.com/draumaz/psychonautwiki-journal-android") }
                 )
                 
                 val context = LocalContext.current
                 ExpressiveSettingsItem(
                     imageVector = Icons.Outlined.Share,
                     text = "Share app",
-                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                     onClick = {
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
@@ -407,20 +419,46 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+fun SettingsSection(title: String, initiallyExpanded: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    var isExpanded by remember { mutableStateOf(initiallyExpanded) }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        content()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { isExpanded = !isExpanded }
+                .padding(vertical = 8.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
     }
 }
 
@@ -469,10 +507,11 @@ fun ExpressiveSwitchButton(
     text: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    activeColor: Color = MaterialTheme.colorScheme.primaryContainer,
     onInfoClick: (() -> Unit)? = null
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        targetValue = if (checked) activeColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         label = "backgroundColor"
     )
     
@@ -496,11 +535,20 @@ fun ExpressiveSwitchButton(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
+                val textColor by animateColorAsState(
+                    targetValue = if (checked) {
+                        if (activeColor == MaterialTheme.colorScheme.primaryContainer) MaterialTheme.colorScheme.onPrimaryContainer
+                        else if (activeColor == MaterialTheme.colorScheme.secondaryContainer) MaterialTheme.colorScheme.onSecondaryContainer
+                        else if (activeColor == MaterialTheme.colorScheme.tertiaryContainer) MaterialTheme.colorScheme.onTertiaryContainer
+                        else MaterialTheme.colorScheme.onSurface
+                    } else MaterialTheme.colorScheme.onSurface,
+                    label = "textColor"
+                )
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    color = textColor
                 )
                 if (onInfoClick != null) {
                     IconButton(
@@ -511,7 +559,7 @@ fun ExpressiveSwitchButton(
                             Icons.Outlined.Info,
                             contentDescription = "Info",
                             modifier = Modifier.size(18.dp),
-                            tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = textColor.copy(alpha = 0.7f)
                         )
                     }
                 }
